@@ -23,7 +23,7 @@ const music = new AmbientMusic();
 let audio, sync;
 
 const FONT_SIZES = ['16px', '18px', '21px', '24px'];
-const DEFAULTS = { theme: 'light', fontIndex: 1, audioSpeed: '1', wholeChapter: true, autoScroll: true, autoContinue: false, autoPlay: false, voice: '', voiceStyle: 'cinematico', music: true, musicVolume: 0.4, musicStyle: 'cinematico' };
+const DEFAULTS = { theme: 'light', fontIndex: 1, audioSpeed: '1', wholeChapter: true, autoScroll: true, autoContinue: false, autoPlay: false, voice: '', voiceStyle: 'natural', music: true, musicVolume: 0.4, musicStyle: 'cinematico' };
 const TITLES = { home: 'Vamos aprender a Palavra de Deus hoje?', bible: 'Bíblia', reader: 'Leitura', search: 'Buscar', favorites: 'Meus favoritos', notes: 'Minhas anotações', plans: 'Planos de leitura', progress: 'Meu progresso', more: 'Mais', settings: 'Configurações', about: 'Sobre o aplicativo', jesus: 'A história de Jesus' };
 
 const state = { view: 'home', bookId: 'joao', chapter: 1, verse: 1, chapterData: null, testament: 'Novo Testamento', pickerBook: null, syncInfo: { state: 'off' } };
@@ -40,12 +40,12 @@ const pad2 = n => String(n).padStart(2, '0');
 const normalize = s => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
 let toastTimer;
-function toast(message) {
+function toast(message, ms = 2800) {
   const node = $('#toast');
   node.textContent = message;
   node.classList.add('show-toast');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => node.classList.remove('show-toast'), 2800);
+  toastTimer = setTimeout(() => node.classList.remove('show-toast'), ms);
 }
 
 async function copyText(text) {
@@ -283,6 +283,10 @@ function renderPlayer(s) {
   $('#audio-play').setAttribute('aria-label', playing ? 'Pausar' : 'Reproduzir');
   player.classList.toggle('is-playing', playing);
   syncMusic(playing);
+  if (playing && !voiceTipShown && audio.bestQuality >= 0 && audio.bestQuality < 3 && !store.settings().voiceTipSeen) {
+    voiceTipShown = true; store.setSetting('voiceTipSeen', true);
+    setTimeout(() => toast('💡 ' + voiceTip(), 9000), 1500);
+  }
   if (!seeking) $('#audio-progress').value = s.duration ? (s.elapsed / s.duration) * 100 : 0;
   $('#audio-current').textContent = fmtTime(s.elapsed);
   $('#audio-duration').textContent = fmtTime(s.duration);
@@ -310,9 +314,17 @@ function syncMusic(narrating) {
   else if (!musicPreview) music.stop();
 }
 // Estilos de narração: cinematográfico (grave, pausado), solene, natural
-const VOICE_STYLES = { cinematico: { pitch: 0.72, gap: 700, rate: 1 }, solene: { pitch: 0.85, gap: 250, rate: 1 }, natural: { pitch: 1, gap: 0, rate: 1 } };
+// Tom levemente abaixo de 1 já soa mais grave; valores menores distorcem as vozes sintéticas.
+const VOICE_STYLES = { natural: { pitch: 1, gap: 350, rate: 1 }, narrador: { pitch: 0.96, gap: 750, rate: 0.95 }, grave: { pitch: 0.9, gap: 500, rate: 0.95 } };
+function voiceTip() {
+  const ua = navigator.userAgent;
+  if (/android/i.test(ua)) return 'Para uma voz mais natural: Configurações do Android › Idioma › Saída de conversão de texto em voz › Mecanismo Google › instale as vozes em Português (Brasil).';
+  if (/iphone|ipad|mac os/i.test(ua) && !/windows/i.test(ua)) return 'Para uma voz mais natural: Ajustes › Acessibilidade › Conteúdo Falado › Vozes › Português (Brasil) › baixe uma voz “Aprimorada”.';
+  return 'Para uma voz muito mais natural, abra o app no Microsoft Edge: ele tem as vozes “Antonio” e “Francisca (Natural)”, que soam como pessoas.';
+}
+let voiceTipShown = false;
 function applyVoiceStyle() {
-  const st = VOICE_STYLES[setting('voiceStyle')] || VOICE_STYLES.cinematico;
+  const st = VOICE_STYLES[setting('voiceStyle')] || VOICE_STYLES.natural;
   audio.gap = st.gap; audio.rateFactor = st.rate;
   audio.setRate(setting('audioSpeed'));
   audio.setPitch(st.pitch);
@@ -490,9 +502,11 @@ function syncSettingsForm() {
   $$('input[name=musicStyle]').forEach(r => (r.checked = r.value === s.musicStyle));
   $('#setting-musicVolume').value = s.musicVolume;
   const voices = audio?.voices() || [];
-  $('#setting-voice').innerHTML = '<option value="">Automática (voz masculina, se houver)</option>' + voices.map(v => `<option value="${esc(v.name)}">${esc(v.name)} (${esc(v.lang)})</option>`).join('');
+  const Q = ['básica', 'comum', 'boa', '⭐ natural'];
+  const sorted = [...voices].sort((x, y) => AudioManager.quality(y) - AudioManager.quality(x));
+  $('#setting-voice').innerHTML = '<option value="">Automática (a mais natural disponível)</option>' + sorted.map(v => `<option value="${esc(v.name)}">${esc(v.name)} — ${Q[AudioManager.quality(v)]}</option>`).join('');
   $('#setting-voice').value = s.voice || '';
-  $('#voice-help').textContent = !audio?.supported ? 'Seu navegador não oferece leitura em voz alta.' : voices.length ? `${voices.length} voz(es) em português disponível(is) neste dispositivo.` : 'Nenhuma voz em português encontrada. No Windows, instale em Configurações › Hora e idioma › Fala. No Android, em Configurações › Conversão de texto em voz.';
+  $('#voice-help').innerHTML = !audio?.supported ? 'Seu navegador não oferece leitura em voz alta.' : !voices.length ? 'Nenhuma voz em português encontrada. No Windows, instale em Configurações › Hora e idioma › Fala. No Android, em Configurações › Conversão de texto em voz.' : `${voices.length} voz(es) em português neste aparelho.` + (audio.bestQuality < 3 ? ` <strong>${voiceTip()}</strong>` : '');
 }
 function renderAbout() { $('#about-credit').textContent = provider.credit; }
 

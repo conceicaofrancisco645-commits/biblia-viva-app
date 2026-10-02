@@ -5,7 +5,7 @@ const CHARS_PER_SECOND = 14; // estimativa para mostrar tempo na voz sintética
 export class AudioManager {
   constructor({ onState, onVerse, onChapterEnd, onListen } = {}) {
     Object.assign(this, { onState, onVerse, onChapterEnd, onListen });
-    this.verses = []; this.index = 0; this.meta = {}; this.rate = 1; this.volume = 1; this.pitch = 0.85; this.gap = 0;
+    this.verses = []; this.index = 0; this.meta = {}; this.rate = 1; this.volume = 1; this.pitch = 1; this.gap = 0;
     this.status = 'stopped'; this.token = 0; this.voice = null; this.voiceName = '';
     this.supported = 'speechSynthesis' in window && 'SpeechSynthesisUtterance' in window;
     this.licensed = null; this.element = null;
@@ -20,19 +20,23 @@ export class AudioManager {
 
   // ---------- Vozes ----------
   voices() { return this.supported ? speechSynthesis.getVoices().filter(v => v.lang?.toLowerCase().startsWith('pt')) : []; }
+  // Nota de qualidade: vozes neurais/online soam humanas; as antigas do Windows (SAPI) soam robóticas.
+  static quality(v) {
+    const n = v.name || '';
+    if (/natural|neural|online|premium|enhanced|wavenet|studio/i.test(n)) return 3;      // Edge, iOS/macOS premium
+    if (/google/i.test(n) || v.localService === false) return 2;                       // vozes do Google (Chrome/Android)
+    if (/^microsoft .* - portuguese/i.test(n) || /desktop/i.test(n)) return 0;          // vozes antigas do Windows
+    return 1;
+  }
+  static isMale(v) { return /antonio|ant[oô]nio|daniel|ricardo|thiago|donato|f[aá]bio|j[uú]lio|humberto|nicolau|val[eé]rio|leonardo|felipe|male|mascul/i.test(v?.name || ''); }
   pickVoice() {
     const all = this.voices();
-    const br = all.filter(v => v.lang.toLowerCase().replace('_', '-') === 'pt-br');
-    // Preferência: vozes masculinas e naturais em português do Brasil (nomes usados por Windows, Edge, Android e iOS).
-    const MALE = /antonio|ant[oô]nio|daniel|ricardo|thiago|donato|fabio|f[aá]bio|julio|j[uú]lio|humberto|nicolau|valerio|val[eé]rio|leonardo|felipe|male|mascul/i;
-    const NATURAL = /natural|online|neural|premium|enhanced/i;
-    this.voice = all.find(v => v.name === this.voiceName)
-      || br.find(v => MALE.test(v.name) && NATURAL.test(v.name))
-      || br.find(v => MALE.test(v.name))
-      || br.find(v => NATURAL.test(v.name))
-      || br[0] || all[0] || null;
+    const score = v => AudioManager.quality(v) * 10 + (v.lang.toLowerCase().replace('_', '-') === 'pt-br' ? 3 : 0) + (AudioManager.isMale(v) ? 1 : 0);
+    const best = [...all].sort((a, b) => score(b) - score(a))[0] || null;
+    this.voice = all.find(v => v.name === this.voiceName) || best;
+    this.bestQuality = best ? AudioManager.quality(best) : -1;
   }
-  isMaleVoice() { return /antonio|ant[oô]nio|daniel|ricardo|thiago|donato|f[aá]bio|j[uú]lio|humberto|nicolau|val[eé]rio|leonardo|felipe|male|mascul/i.test(this.voice?.name || ''); }
+  isMaleVoice() { return AudioManager.isMale(this.voice); }
   setPitch(p) { this.pitch = Number(p) || 1; this.restartIfPlaying(); }
   setVoice(name) { this.voiceName = name; this.pickVoice(); this.restartIfPlaying(); }
 
@@ -85,31 +89,51 @@ export class AudioManager {
     if (this.supported) speechSynthesis.cancel();
     if (this.element) { this.element.pause(); this.element.src = ''; this.element = null; }
   }
+  // Texto preparado para a fala: "SENHOR" → "Senhor" (algumas vozes soletram palavras em maiúsculas)
+  static speechText(t) {
+    return (t || '').replace(/\b([A-ZÁÉÍÓÚÂÊÔÃÕÇ]{2,})\b/g, w => w[0] + w.slice(1).toLowerCase()).replace(/\s+/g, ' ').trim();
+  }
+  // Divide versículos longos em frases (as vozes do Google no Chrome param sozinhas em falas longas)
+  static chunks(t, max = 180) {
+    const parts = t.match(/[^.!?;:]+[.!?;:]*["”’)]*\s*/g) || [t];
+    const out = []; let cur = '';
+    for (const p of parts) {
+      if ((cur + p).length > max && cur) { out.push(cur.trim()); cur = ''; }
+      if (p.length > max) { p.split(/,\s+/).map((q, k, arr) => (k < arr.length - 1 ? q + ',' : q)).forEach(q => { if ((cur + q).length > max && cur) { out.push(cur.trim()); cur = ''; } cur += q + ' '; }); }
+      else cur += p;
+    }
+    if (cur.trim()) out.push(cur.trim());
+    return out.length ? out : [t];
+  }
   speakCurrent() {
     const token = ++this.token;
     if (this.supported) speechSynthesis.cancel();
     const verse = this.verses[this.index];
     if (!verse) return;
-    const text = verse.text || '';
-    const u = new SpeechSynthesisUtterance(text);
-    u.lang = this.voice?.lang || 'pt-BR';
-    if (this.voice) u.voice = this.voice;
-    u.rate = this.rate * (this.rateFactor || 1); u.volume = this.volume; u.pitch = this.pitch;
-    u.onstart = () => { if (token !== this.token) return; this.verseStarted = Date.now(); this.status = 'playing'; this.emit(); };
-    u.onend = () => {
-      if (token !== this.token) return; // evento de uma fala cancelada
-      if (!this.single && this.index < this.verses.length - 1) { this.index++; this.onVerse?.(this.index); if (this.gap) setTimeout(() => { if (token === this.token) this.speakCurrent(); }, this.gap); else this.speakCurrent(); }
-      else { this.status = 'stopped'; this.emit(); if (!this.single) this.onChapterEnd?.(this.meta); }
-    };
-    u.onerror = e => {
-      if (token !== this.token || e.error === 'interrupted' || e.error === 'canceled') return;
-      this.status = 'stopped'; this.emit('error', 'Não foi possível reproduzir a voz neste dispositivo.');
+    const parts = AudioManager.chunks(AudioManager.speechText(verse.text));
+    const speakPart = i => {
+      const u = new SpeechSynthesisUtterance(parts[i]);
+      u.lang = this.voice?.lang || 'pt-BR';
+      if (this.voice) u.voice = this.voice;
+      u.rate = this.rate * (this.rateFactor || 1); u.volume = this.volume; u.pitch = this.pitch;
+      if (i === 0) u.onstart = () => { if (token !== this.token) return; this.verseStarted = Date.now(); this.status = 'playing'; this.emit(); };
+      u.onend = () => {
+        if (token !== this.token) return; // evento de uma fala cancelada
+        if (i < parts.length - 1) return speakPart(i + 1);
+        if (!this.single && this.index < this.verses.length - 1) { this.index++; this.onVerse?.(this.index); if (this.gap) setTimeout(() => { if (token === this.token) this.speakCurrent(); }, this.gap); else this.speakCurrent(); }
+        else { this.status = 'stopped'; this.emit(); if (!this.single) this.onChapterEnd?.(this.meta); }
+      };
+      u.onerror = e => {
+        if (token !== this.token || e.error === 'interrupted' || e.error === 'canceled') return;
+        this.status = 'stopped'; this.emit('error', 'Não foi possível reproduzir a voz neste dispositivo.');
+      };
+      speechSynthesis.speak(u);
     };
     this.status = 'playing'; this.verseStarted = Date.now();
     this.onVerse?.(this.index);
     this.emit();
     // Pequeno atraso: o Chrome às vezes ignora speak() logo após cancel().
-    setTimeout(() => { if (token === this.token) speechSynthesis.speak(u); }, 60);
+    setTimeout(() => { if (token === this.token) speakPart(0); }, 60);
   }
   playFile(src) {
     const el = new Audio(src);
