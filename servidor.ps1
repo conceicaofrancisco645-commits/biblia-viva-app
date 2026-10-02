@@ -21,7 +21,7 @@ Write-Host ''
 Write-Host "  Biblia Viva rodando em $url" -ForegroundColor Green
 Write-Host '  Deixe esta janela aberta enquanto usa o app. Feche-a para parar.'
 Write-Host ''
-Start-Process $url
+try { Start-Process 'msedge' $url } catch { Start-Process $url }  # Edge tem a voz masculina natural (Antonio)
 $rootFull = [System.IO.Path]::GetFullPath($root)
 while ($listener.IsListening) {
   try { $ctx = $listener.GetContext() } catch { break }
