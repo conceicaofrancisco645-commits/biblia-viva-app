@@ -512,7 +512,7 @@
 
   // app/js/src/audio.js
   var CHARS_PER_SECOND = 14;
-  var AudioManager = class {
+  var AudioManager = class _AudioManager {
     constructor({ onState, onVerse, onChapterEnd, onListen } = {}) {
       var _a;
       Object.assign(this, { onState, onVerse, onChapterEnd, onListen });
@@ -521,7 +521,7 @@
       this.meta = {};
       this.rate = 1;
       this.volume = 1;
-      this.pitch = 0.85;
+      this.pitch = 1;
       this.gap = 0;
       this.status = "stopped";
       this.token = 0;
@@ -548,16 +548,26 @@
         return (_a = v.lang) == null ? void 0 : _a.toLowerCase().startsWith("pt");
       }) : [];
     }
+    // Nota de qualidade: vozes neurais/online soam humanas; as antigas do Windows (SAPI) soam robóticas.
+    static quality(v) {
+      const n = v.name || "";
+      if (/natural|neural|online|premium|enhanced|wavenet|studio/i.test(n)) return 3;
+      if (/google/i.test(n) || v.localService === false) return 2;
+      if (/^microsoft .* - portuguese/i.test(n) || /desktop/i.test(n)) return 0;
+      return 1;
+    }
+    static isMale(v) {
+      return /antonio|ant[oô]nio|daniel|ricardo|thiago|donato|f[aá]bio|j[uú]lio|humberto|nicolau|val[eé]rio|leonardo|felipe|male|mascul/i.test((v == null ? void 0 : v.name) || "");
+    }
     pickVoice() {
       const all = this.voices();
-      const br = all.filter((v) => v.lang.toLowerCase().replace("_", "-") === "pt-br");
-      const MALE = /antonio|ant[oô]nio|daniel|ricardo|thiago|donato|fabio|f[aá]bio|julio|j[uú]lio|humberto|nicolau|valerio|val[eé]rio|leonardo|felipe|male|mascul/i;
-      const NATURAL = /natural|online|neural|premium|enhanced/i;
-      this.voice = all.find((v) => v.name === this.voiceName) || br.find((v) => MALE.test(v.name) && NATURAL.test(v.name)) || br.find((v) => MALE.test(v.name)) || br.find((v) => NATURAL.test(v.name)) || br[0] || all[0] || null;
+      const score = (v) => _AudioManager.quality(v) * 10 + (v.lang.toLowerCase().replace("_", "-") === "pt-br" ? 3 : 0) + (_AudioManager.isMale(v) ? 1 : 0);
+      const best = [...all].sort((a, b) => score(b) - score(a))[0] || null;
+      this.voice = all.find((v) => v.name === this.voiceName) || best;
+      this.bestQuality = best ? _AudioManager.quality(best) : -1;
     }
     isMaleVoice() {
-      var _a;
-      return /antonio|ant[oô]nio|daniel|ricardo|thiago|donato|f[aá]bio|j[uú]lio|humberto|nicolau|val[eé]rio|leonardo|felipe|male|mascul/i.test(((_a = this.voice) == null ? void 0 : _a.name) || "");
+      return _AudioManager.isMale(this.voice);
     }
     setPitch(p) {
       this.pitch = Number(p) || 1;
@@ -671,52 +681,84 @@
         this.element = null;
       }
     }
+    // Texto preparado para a fala: "SENHOR" → "Senhor" (algumas vozes soletram palavras em maiúsculas)
+    static speechText(t) {
+      return (t || "").replace(/\b([A-ZÁÉÍÓÚÂÊÔÃÕÇ]{2,})\b/g, (w) => w[0] + w.slice(1).toLowerCase()).replace(/\s+/g, " ").trim();
+    }
+    // Divide versículos longos em frases (as vozes do Google no Chrome param sozinhas em falas longas)
+    static chunks(t, max = 180) {
+      const parts = t.match(/[^.!?;:]+[.!?;:]*["”’)]*\s*/g) || [t];
+      const out = [];
+      let cur = "";
+      for (const p of parts) {
+        if ((cur + p).length > max && cur) {
+          out.push(cur.trim());
+          cur = "";
+        }
+        if (p.length > max) {
+          p.split(/,\s+/).map((q, k, arr) => k < arr.length - 1 ? q + "," : q).forEach((q) => {
+            if ((cur + q).length > max && cur) {
+              out.push(cur.trim());
+              cur = "";
+            }
+            cur += q + " ";
+          });
+        } else cur += p;
+      }
+      if (cur.trim()) out.push(cur.trim());
+      return out.length ? out : [t];
+    }
     speakCurrent() {
-      var _a, _b;
+      var _a;
       const token = ++this.token;
       if (this.supported) speechSynthesis.cancel();
       const verse = this.verses[this.index];
       if (!verse) return;
-      const text = verse.text || "";
-      const u = new SpeechSynthesisUtterance(text);
-      u.lang = ((_a = this.voice) == null ? void 0 : _a.lang) || "pt-BR";
-      if (this.voice) u.voice = this.voice;
-      u.rate = this.rate * (this.rateFactor || 1);
-      u.volume = this.volume;
-      u.pitch = this.pitch;
-      u.onstart = () => {
-        if (token !== this.token) return;
-        this.verseStarted = Date.now();
-        this.status = "playing";
-        this.emit();
-      };
-      u.onend = () => {
-        var _a2, _b2;
-        if (token !== this.token) return;
-        if (!this.single && this.index < this.verses.length - 1) {
-          this.index++;
-          (_a2 = this.onVerse) == null ? void 0 : _a2.call(this, this.index);
-          if (this.gap) setTimeout(() => {
-            if (token === this.token) this.speakCurrent();
-          }, this.gap);
-          else this.speakCurrent();
-        } else {
-          this.status = "stopped";
+      const parts = _AudioManager.chunks(_AudioManager.speechText(verse.text));
+      const speakPart = (i) => {
+        var _a2;
+        const u = new SpeechSynthesisUtterance(parts[i]);
+        u.lang = ((_a2 = this.voice) == null ? void 0 : _a2.lang) || "pt-BR";
+        if (this.voice) u.voice = this.voice;
+        u.rate = this.rate * (this.rateFactor || 1);
+        u.volume = this.volume;
+        u.pitch = this.pitch;
+        if (i === 0) u.onstart = () => {
+          if (token !== this.token) return;
+          this.verseStarted = Date.now();
+          this.status = "playing";
           this.emit();
-          if (!this.single) (_b2 = this.onChapterEnd) == null ? void 0 : _b2.call(this, this.meta);
-        }
-      };
-      u.onerror = (e) => {
-        if (token !== this.token || e.error === "interrupted" || e.error === "canceled") return;
-        this.status = "stopped";
-        this.emit("error", "N\xE3o foi poss\xEDvel reproduzir a voz neste dispositivo.");
+        };
+        u.onend = () => {
+          var _a3, _b;
+          if (token !== this.token) return;
+          if (i < parts.length - 1) return speakPart(i + 1);
+          if (!this.single && this.index < this.verses.length - 1) {
+            this.index++;
+            (_a3 = this.onVerse) == null ? void 0 : _a3.call(this, this.index);
+            if (this.gap) setTimeout(() => {
+              if (token === this.token) this.speakCurrent();
+            }, this.gap);
+            else this.speakCurrent();
+          } else {
+            this.status = "stopped";
+            this.emit();
+            if (!this.single) (_b = this.onChapterEnd) == null ? void 0 : _b.call(this, this.meta);
+          }
+        };
+        u.onerror = (e) => {
+          if (token !== this.token || e.error === "interrupted" || e.error === "canceled") return;
+          this.status = "stopped";
+          this.emit("error", "N\xE3o foi poss\xEDvel reproduzir a voz neste dispositivo.");
+        };
+        speechSynthesis.speak(u);
       };
       this.status = "playing";
       this.verseStarted = Date.now();
-      (_b = this.onVerse) == null ? void 0 : _b.call(this, this.index);
+      (_a = this.onVerse) == null ? void 0 : _a.call(this, this.index);
       this.emit();
       setTimeout(() => {
-        if (token === this.token) speechSynthesis.speak(u);
+        if (token === this.token) speakPart(0);
       }, 60);
     }
     playFile(src) {
@@ -1271,7 +1313,7 @@
   var audio;
   var sync;
   var FONT_SIZES = ["16px", "18px", "21px", "24px"];
-  var DEFAULTS = { theme: "light", fontIndex: 1, audioSpeed: "1", wholeChapter: true, autoScroll: true, autoContinue: false, autoPlay: false, voice: "", voiceStyle: "cinematico", music: true, musicVolume: 0.4, musicStyle: "cinematico" };
+  var DEFAULTS = { theme: "light", fontIndex: 1, audioSpeed: "1", wholeChapter: true, autoScroll: true, autoContinue: false, autoPlay: false, voice: "", voiceStyle: "natural", music: true, musicVolume: 0.4, musicStyle: "cinematico" };
   var TITLES = { home: "Vamos aprender a Palavra de Deus hoje?", bible: "B\xEDblia", reader: "Leitura", search: "Buscar", favorites: "Meus favoritos", notes: "Minhas anota\xE7\xF5es", plans: "Planos de leitura", progress: "Meu progresso", more: "Mais", settings: "Configura\xE7\xF5es", about: "Sobre o aplicativo", jesus: "A hist\xF3ria de Jesus" };
   var state = { view: "home", bookId: "joao", chapter: 1, verse: 1, chapterData: null, testament: "Novo Testamento", pickerBook: null, syncInfo: { state: "off" } };
   var $ = (s) => document.querySelector(s);
@@ -1293,12 +1335,12 @@
   var pad2 = (n) => String(n).padStart(2, "0");
   var normalize2 = (s) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
   var toastTimer;
-  function toast(message) {
+  function toast(message, ms = 2800) {
     const node = $("#toast");
     node.textContent = message;
     node.classList.add("show-toast");
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => node.classList.remove("show-toast"), 2800);
+    toastTimer = setTimeout(() => node.classList.remove("show-toast"), ms);
   }
   async function copyText(text) {
     try {
@@ -1580,6 +1622,11 @@
     $("#audio-play").setAttribute("aria-label", playing ? "Pausar" : "Reproduzir");
     player.classList.toggle("is-playing", playing);
     syncMusic(playing);
+    if (playing && !voiceTipShown && audio.bestQuality >= 0 && audio.bestQuality < 3 && !store.settings().voiceTipSeen) {
+      voiceTipShown = true;
+      store.setSetting("voiceTipSeen", true);
+      setTimeout(() => toast("\u{1F4A1} " + voiceTip(), 9e3), 1500);
+    }
     if (!seeking) $("#audio-progress").value = s.duration ? s.elapsed / s.duration * 100 : 0;
     $("#audio-current").textContent = fmtTime(s.elapsed);
     $("#audio-duration").textContent = fmtTime(s.duration);
@@ -1612,9 +1659,16 @@
       music.start();
     } else if (!musicPreview) music.stop();
   }
-  var VOICE_STYLES = { cinematico: { pitch: 0.72, gap: 700, rate: 1 }, solene: { pitch: 0.85, gap: 250, rate: 1 }, natural: { pitch: 1, gap: 0, rate: 1 } };
+  var VOICE_STYLES = { natural: { pitch: 1, gap: 350, rate: 1 }, narrador: { pitch: 0.96, gap: 750, rate: 0.95 }, grave: { pitch: 0.9, gap: 500, rate: 0.95 } };
+  function voiceTip() {
+    const ua = navigator.userAgent;
+    if (/android/i.test(ua)) return "Para uma voz mais natural: Configura\xE7\xF5es do Android \u203A Idioma \u203A Sa\xEDda de convers\xE3o de texto em voz \u203A Mecanismo Google \u203A instale as vozes em Portugu\xEAs (Brasil).";
+    if (/iphone|ipad|mac os/i.test(ua) && !/windows/i.test(ua)) return "Para uma voz mais natural: Ajustes \u203A Acessibilidade \u203A Conte\xFAdo Falado \u203A Vozes \u203A Portugu\xEAs (Brasil) \u203A baixe uma voz \u201CAprimorada\u201D.";
+    return "Para uma voz muito mais natural, abra o app no Microsoft Edge: ele tem as vozes \u201CAntonio\u201D e \u201CFrancisca (Natural)\u201D, que soam como pessoas.";
+  }
+  var voiceTipShown = false;
   function applyVoiceStyle() {
-    const st = VOICE_STYLES[setting("voiceStyle")] || VOICE_STYLES.cinematico;
+    const st = VOICE_STYLES[setting("voiceStyle")] || VOICE_STYLES.natural;
     audio.gap = st.gap;
     audio.rateFactor = st.rate;
     audio.setRate(setting("audioSpeed"));
@@ -1840,9 +1894,11 @@
     $$("input[name=musicStyle]").forEach((r) => r.checked = r.value === s.musicStyle);
     $("#setting-musicVolume").value = s.musicVolume;
     const voices = (audio == null ? void 0 : audio.voices()) || [];
-    $("#setting-voice").innerHTML = '<option value="">Autom\xE1tica (voz masculina, se houver)</option>' + voices.map((v) => `<option value="${esc(v.name)}">${esc(v.name)} (${esc(v.lang)})</option>`).join("");
+    const Q = ["b\xE1sica", "comum", "boa", "\u2B50 natural"];
+    const sorted = [...voices].sort((x, y) => AudioManager.quality(y) - AudioManager.quality(x));
+    $("#setting-voice").innerHTML = '<option value="">Autom\xE1tica (a mais natural dispon\xEDvel)</option>' + sorted.map((v) => `<option value="${esc(v.name)}">${esc(v.name)} \u2014 ${Q[AudioManager.quality(v)]}</option>`).join("");
     $("#setting-voice").value = s.voice || "";
-    $("#voice-help").textContent = !(audio == null ? void 0 : audio.supported) ? "Seu navegador n\xE3o oferece leitura em voz alta." : voices.length ? `${voices.length} voz(es) em portugu\xEAs dispon\xEDvel(is) neste dispositivo.` : "Nenhuma voz em portugu\xEAs encontrada. No Windows, instale em Configura\xE7\xF5es \u203A Hora e idioma \u203A Fala. No Android, em Configura\xE7\xF5es \u203A Convers\xE3o de texto em voz.";
+    $("#voice-help").innerHTML = !(audio == null ? void 0 : audio.supported) ? "Seu navegador n\xE3o oferece leitura em voz alta." : !voices.length ? "Nenhuma voz em portugu\xEAs encontrada. No Windows, instale em Configura\xE7\xF5es \u203A Hora e idioma \u203A Fala. No Android, em Configura\xE7\xF5es \u203A Convers\xE3o de texto em voz." : `${voices.length} voz(es) em portugu\xEAs neste aparelho.` + (audio.bestQuality < 3 ? ` <strong>${voiceTip()}</strong>` : "");
   }
   function renderAbout() {
     $("#about-credit").textContent = provider.credit;
