@@ -1,0 +1,40 @@
+@media(max-width:900px){.app-shell{display:block}.sidebar{display:none}main{padding:0 24px 150px}.mobile-nav{display:flex}.audio-player{left:18px;right:18px}.stats-grid{grid-template-columns:repeat(3,1fr)}.hero-grid{grid-template-columns:1fr}.selector-grid{grid-template-columns:1fr 1fr}.selector-button{grid-column:span 2}.jesus-symbol{font-size:75px}}
+@media(min-width:901px){.mobile-nav{display:none}}
+@media(max-width:620px){main{padding:0 16px 130px}.topbar{padding:22px 0}.top-actions .focus-toggle span{display:none}.hero-grid{gap:12px}.daily-verse,.reading-card{padding:24px}.daily-verse{min-height:300px}.stats-grid{grid-template-columns:1fr 1fr}.stat-card{min-height:98px}.plan-banner,.jesus-banner{padding:21px;align-items:flex-start}.plan-banner{display:block}.plan-banner .btn{margin-top:12px}.jesus-symbol{display:none}.selector-grid{grid-template-columns:1fr}.selector-button{grid-column:auto}.reader-header{align-items:flex-start;gap:12px;flex-wrap:wrap}.reader-header h1{font-size:28px}.reader-tools{margin-left:auto}.verse{padding-left:32px;padding-right:42px}.verse-number{left:8px}.plans-grid,.more-grid{grid-template-columns:1fr}.progress-stats{grid-template-columns:1fr 1fr}.audio-player{bottom:70px;grid-template-columns:1fr auto;gap:6px;padding:11px 16px}.now-playing{grid-column:1}.audio-player>input{grid-column:1 / span 2}.audio-time{grid-column:1 / span 2;grid-row:auto;margin:0}.player-controls{grid-column:2;grid-row:1}.player-controls button:not(.play-button){display:none}.player-settings{display:none}.mobile-nav{position:fixed;z-index:6;bottom:0;left:0;right:0;height:64px;background:var(--surface);border-top:1px solid var(--line);justify-content:space-around}.mobile-nav button{border:0;background:transparent;display:grid;place-items:center;gap:2px;padding:7px;color:var(--muted);font-size:19px;min-width:54px}.mobile-nav span{font-size:9px;font-weight:700}.mobile-nav .active{color:var(--green)}.welcome-card{padding:34px 24px}.focus-mode main{padding:20px 16px 130px}.focus-mode .audio-player{left:16px;right:16px}}
+/* ===== v3 ===== */
+@media(max-width:620px){
+  .player-controls button:not(.play-button){display:inline-block}
+  .audio-player{grid-template-columns:1fr auto}
+  .player-controls{grid-row:1;grid-column:2;gap:2px}
+  .player-settings{display:flex;grid-column:1 / span 2;justify-content:space-between}
+  .player-settings label{width:auto;flex:1}
+  .book-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .reader-footer .btn{flex:1;min-width:0}
+  #complete-chapter{order:-1;flex-basis:100%}
+  .play-chapter span{display:none}
+  .exit-focus{top:auto;bottom:150px;right:12px}
+  .account-card{padding:18px}
+  .mobile-nav span:first-child{font-size:18px}
+  .main-safe{padding-bottom:env(safe-area-inset-bottom)}
+}
+/* barra inferior também em tablets (antes só ficava fixa abaixo de 620px) */
+@media(max-width:900px){
+  .mobile-nav{position:fixed;z-index:6;bottom:0;left:0;right:0;height:64px;padding-bottom:env(safe-area-inset-bottom);background:var(--surface);border-top:1px solid var(--line);justify-content:space-around}
+  .mobile-nav button{border:0;background:transparent;display:grid;place-items:center;gap:2px;padding:7px;color:var(--muted);min-width:54px}
+  .mobile-nav span:last-child{font-size:10px;font-weight:700}
+  .mobile-nav .active{color:var(--green)}
+  .audio-player{bottom:76px}
+  .focus-mode .audio-player{bottom:18px}
+  #toast{bottom:150px}
+}
+@media(max-width:620px){
+  .top-actions .focus-toggle span{display:inline}.top-actions .focus-toggle span:last-child{display:none}
+  .verse.selected .verse-actions{position:static;display:flex;justify-content:flex-end;margin-top:8px;box-shadow:none;width:max-content;margin-left:auto}
+  .audio-player{grid-template-columns:1fr auto;grid-template-rows:auto auto auto auto;row-gap:4px}
+  .audio-player .now-playing{grid-row:1;grid-column:1;min-width:0}
+  .audio-player .player-controls{grid-row:1;grid-column:2}
+  .audio-player>input{grid-row:2;grid-column:1 / span 2}
+  .audio-player .audio-time{grid-row:3;grid-column:1 / span 2}
+  .audio-player .player-settings{grid-row:4;grid-column:1 / span 2;gap:12px}
+  .now-playing strong{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+}
