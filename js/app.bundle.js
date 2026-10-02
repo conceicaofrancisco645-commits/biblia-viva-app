@@ -556,21 +556,32 @@
       if (/^microsoft .* - portuguese/i.test(n) || /desktop/i.test(n)) return 0;
       return 1;
     }
+    static isFemale(v) {
+      return /maria|francisca|thalita|leticia|let[ií]cia|brenda|elza|giovanna|yara|manuela|luciana|fernanda|female|femin|google portugu[eê]s/i.test((v == null ? void 0 : v.name) || "");
+    }
     static isMale(v) {
       return /antonio|ant[oô]nio|daniel|ricardo|thiago|donato|f[aá]bio|j[uú]lio|humberto|nicolau|val[eé]rio|leonardo|felipe|male|mascul/i.test((v == null ? void 0 : v.name) || "");
     }
     pickVoice() {
       const all = this.voices();
-      const score = (v) => _AudioManager.quality(v) * 10 + (v.lang.toLowerCase().replace("_", "-") === "pt-br" ? 3 : 0) + (_AudioManager.isMale(v) ? 1 : 0);
+      const g = this.gender || "masculina";
+      const genderScore = (v) => g === "masculina" ? _AudioManager.isMale(v) ? 100 : 0 : g === "feminina" ? _AudioManager.isFemale(v) ? 100 : 0 : 0;
+      const score = (v) => genderScore(v) + _AudioManager.quality(v) * 10 + (v.lang.toLowerCase().replace("_", "-") === "pt-br" ? 3 : 0);
       const best = [...all].sort((a, b) => score(b) - score(a))[0] || null;
       this.voice = all.find((v) => v.name === this.voiceName) || best;
       this.bestQuality = best ? _AudioManager.quality(best) : -1;
+      this.hasNaturalMale = all.some((v) => _AudioManager.isMale(v) && _AudioManager.quality(v) >= 3);
     }
     isMaleVoice() {
       return _AudioManager.isMale(this.voice);
     }
     setPitch(p) {
       this.pitch = Number(p) || 1;
+      this.restartIfPlaying();
+    }
+    setGender(g) {
+      this.gender = g;
+      this.pickVoice();
       this.restartIfPlaying();
     }
     setVoice(name) {
@@ -1313,7 +1324,7 @@
   var audio;
   var sync;
   var FONT_SIZES = ["16px", "18px", "21px", "24px"];
-  var DEFAULTS = { theme: "light", fontIndex: 1, audioSpeed: "1", wholeChapter: true, autoScroll: true, autoContinue: false, autoPlay: false, voice: "", voiceStyle: "natural", music: true, musicVolume: 0.4, musicStyle: "cinematico" };
+  var DEFAULTS = { theme: "light", fontIndex: 1, audioSpeed: "1", wholeChapter: true, autoScroll: true, autoContinue: false, autoPlay: false, voice: "", voiceStyle: "natural", voiceGender: "masculina", music: true, musicVolume: 0.4, musicStyle: "cinematico" };
   var TITLES = { home: "Vamos aprender a Palavra de Deus hoje?", bible: "B\xEDblia", reader: "Leitura", search: "Buscar", favorites: "Meus favoritos", notes: "Minhas anota\xE7\xF5es", plans: "Planos de leitura", progress: "Meu progresso", more: "Mais", settings: "Configura\xE7\xF5es", about: "Sobre o aplicativo", jesus: "A hist\xF3ria de Jesus" };
   var state = { view: "home", bookId: "joao", chapter: 1, verse: 1, chapterData: null, testament: "Novo Testamento", pickerBook: null, syncInfo: { state: "off" } };
   var $ = (s) => document.querySelector(s);
@@ -1605,6 +1616,7 @@
     });
     audio.setRate(setting("audioSpeed"));
     applyVoiceStyle();
+    audio.gender = setting("voiceGender");
     audio.voiceName = setting("voice");
     audio.pickVoice();
     $("#audio-speed").value = String(setting("audioSpeed"));
@@ -1622,9 +1634,10 @@
     $("#audio-play").setAttribute("aria-label", playing ? "Pausar" : "Reproduzir");
     player.classList.toggle("is-playing", playing);
     syncMusic(playing);
-    if (playing && !voiceTipShown && audio.bestQuality >= 0 && audio.bestQuality < 3 && !store.settings().voiceTipSeen) {
+    const weakVoice = audio.bestQuality < 3 || setting("voiceGender") === "masculina" && !audio.hasNaturalMale;
+    if (playing && !voiceTipShown && audio.bestQuality >= 0 && weakVoice && !store.settings().voiceTipSeen2) {
       voiceTipShown = true;
-      store.setSetting("voiceTipSeen", true);
+      store.setSetting("voiceTipSeen2", true);
       setTimeout(() => toast("\u{1F4A1} " + voiceTip(), 9e3), 1500);
     }
     if (!seeking) $("#audio-progress").value = s.duration ? s.elapsed / s.duration * 100 : 0;
@@ -1664,7 +1677,7 @@
     const ua = navigator.userAgent;
     if (/android/i.test(ua)) return "Para uma voz mais natural: Configura\xE7\xF5es do Android \u203A Idioma \u203A Sa\xEDda de convers\xE3o de texto em voz \u203A Mecanismo Google \u203A instale as vozes em Portugu\xEAs (Brasil).";
     if (/iphone|ipad|mac os/i.test(ua) && !/windows/i.test(ua)) return "Para uma voz mais natural: Ajustes \u203A Acessibilidade \u203A Conte\xFAdo Falado \u203A Vozes \u203A Portugu\xEAs (Brasil) \u203A baixe uma voz \u201CAprimorada\u201D.";
-    return "Para uma voz muito mais natural, abra o app no Microsoft Edge: ele tem as vozes \u201CAntonio\u201D e \u201CFrancisca (Natural)\u201D, que soam como pessoas.";
+    return "Para uma voz masculina bem natural, abra o app no Microsoft Edge: ele tem a voz \u201CAntonio (Natural)\u201D, que soa como uma pessoa lendo. No Chrome a \xFAnica voz masculina \xE9 a do Windows, mais rob\xF3tica.";
   }
   var voiceTipShown = false;
   function applyVoiceStyle() {
@@ -1891,14 +1904,15 @@
     $("#setting-speed").value = String(s.audioSpeed);
     ["autoContinue", "wholeChapter", "autoScroll", "autoPlay", "music"].forEach((k) => $(`#setting-${k}`).checked = !!s[k]);
     $$("input[name=voiceStyle]").forEach((r) => r.checked = r.value === s.voiceStyle);
+    $$("input[name=voiceGender]").forEach((r) => r.checked = r.value === s.voiceGender);
     $$("input[name=musicStyle]").forEach((r) => r.checked = r.value === s.musicStyle);
     $("#setting-musicVolume").value = s.musicVolume;
     const voices = (audio == null ? void 0 : audio.voices()) || [];
     const Q = ["b\xE1sica", "comum", "boa", "\u2B50 natural"];
     const sorted = [...voices].sort((x, y) => AudioManager.quality(y) - AudioManager.quality(x));
-    $("#setting-voice").innerHTML = '<option value="">Autom\xE1tica (a mais natural dispon\xEDvel)</option>' + sorted.map((v) => `<option value="${esc(v.name)}">${esc(v.name)} \u2014 ${Q[AudioManager.quality(v)]}</option>`).join("");
+    $("#setting-voice").innerHTML = '<option value="">Autom\xE1tica (conforme a prefer\xEAncia acima)</option>' + sorted.map((v) => `<option value="${esc(v.name)}">${esc(v.name)} \u2014 ${Q[AudioManager.quality(v)]}</option>`).join("");
     $("#setting-voice").value = s.voice || "";
-    $("#voice-help").innerHTML = !(audio == null ? void 0 : audio.supported) ? "Seu navegador n\xE3o oferece leitura em voz alta." : !voices.length ? "Nenhuma voz em portugu\xEAs encontrada. No Windows, instale em Configura\xE7\xF5es \u203A Hora e idioma \u203A Fala. No Android, em Configura\xE7\xF5es \u203A Convers\xE3o de texto em voz." : `${voices.length} voz(es) em portugu\xEAs neste aparelho.` + (audio.bestQuality < 3 ? ` <strong>${voiceTip()}</strong>` : "");
+    $("#voice-help").innerHTML = !(audio == null ? void 0 : audio.supported) ? "Seu navegador n\xE3o oferece leitura em voz alta." : !voices.length ? "Nenhuma voz em portugu\xEAs encontrada. No Windows, instale em Configura\xE7\xF5es \u203A Hora e idioma \u203A Fala. No Android, em Configura\xE7\xF5es \u203A Convers\xE3o de texto em voz." : `${voices.length} voz(es) em portugu\xEAs neste aparelho.` + (audio.bestQuality < 3 || s.voiceGender === "masculina" && !audio.hasNaturalMale ? ` <strong>${voiceTip()}</strong>` : "");
   }
   function renderAbout() {
     $("#about-credit").textContent = provider.credit;
@@ -2187,6 +2201,15 @@
     $$("input[name=voiceStyle]").forEach((r) => r.addEventListener("change", () => {
       store.setSetting("voiceStyle", r.value);
       applyVoiceStyle();
+    }));
+    $$("input[name=voiceGender]").forEach((r) => r.addEventListener("change", () => {
+      var _a2;
+      store.setSetting("voiceGender", r.value);
+      store.setSetting("voice", "");
+      audio.voiceName = "";
+      audio.setGender(r.value);
+      syncSettingsForm();
+      toast("\u{1F50A} Voz: " + (((_a2 = audio.voice) == null ? void 0 : _a2.name) || "padr\xE3o do aparelho"));
     }));
     $$("input[name=musicStyle]").forEach((r) => r.addEventListener("change", () => {
       store.setSetting("musicStyle", r.value);
