@@ -28,16 +28,22 @@ export class AudioManager {
     if (/^microsoft .* - portuguese/i.test(n) || /desktop/i.test(n)) return 0;          // vozes antigas do Windows
     return 1;
   }
+  static isFemale(v) { return /maria|francisca|thalita|leticia|let[ií]cia|brenda|elza|giovanna|yara|manuela|luciana|fernanda|female|femin|google portugu[eê]s/i.test(v?.name || ''); }
   static isMale(v) { return /antonio|ant[oô]nio|daniel|ricardo|thiago|donato|f[aá]bio|j[uú]lio|humberto|nicolau|val[eé]rio|leonardo|felipe|male|mascul/i.test(v?.name || ''); }
   pickVoice() {
     const all = this.voices();
-    const score = v => AudioManager.quality(v) * 10 + (v.lang.toLowerCase().replace('_', '-') === 'pt-br' ? 3 : 0) + (AudioManager.isMale(v) ? 1 : 0);
+    // gender: 'masculina' | 'feminina' | 'natural' (só qualidade)
+    const g = this.gender || 'masculina';
+    const genderScore = v => g === 'masculina' ? (AudioManager.isMale(v) ? 100 : 0) : g === 'feminina' ? (AudioManager.isFemale(v) ? 100 : 0) : 0;
+    const score = v => genderScore(v) + AudioManager.quality(v) * 10 + (v.lang.toLowerCase().replace('_', '-') === 'pt-br' ? 3 : 0);
     const best = [...all].sort((a, b) => score(b) - score(a))[0] || null;
     this.voice = all.find(v => v.name === this.voiceName) || best;
     this.bestQuality = best ? AudioManager.quality(best) : -1;
+    this.hasNaturalMale = all.some(v => AudioManager.isMale(v) && AudioManager.quality(v) >= 3);
   }
   isMaleVoice() { return AudioManager.isMale(this.voice); }
   setPitch(p) { this.pitch = Number(p) || 1; this.restartIfPlaying(); }
+  setGender(g) { this.gender = g; this.pickVoice(); this.restartIfPlaying(); }
   setVoice(name) { this.voiceName = name; this.pickVoice(); this.restartIfPlaying(); }
 
   // ---------- API pública ----------

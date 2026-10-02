@@ -23,7 +23,7 @@ const music = new AmbientMusic();
 let audio, sync;
 
 const FONT_SIZES = ['16px', '18px', '21px', '24px'];
-const DEFAULTS = { theme: 'light', fontIndex: 1, audioSpeed: '1', wholeChapter: true, autoScroll: true, autoContinue: false, autoPlay: false, voice: '', voiceStyle: 'natural', music: true, musicVolume: 0.4, musicStyle: 'cinematico' };
+const DEFAULTS = { theme: 'light', fontIndex: 1, audioSpeed: '1', wholeChapter: true, autoScroll: true, autoContinue: false, autoPlay: false, voice: '', voiceStyle: 'natural', voiceGender: 'masculina', music: true, musicVolume: 0.4, musicStyle: 'cinematico' };
 const TITLES = { home: 'Vamos aprender a Palavra de Deus hoje?', bible: 'Bíblia', reader: 'Leitura', search: 'Buscar', favorites: 'Meus favoritos', notes: 'Minhas anotações', plans: 'Planos de leitura', progress: 'Meu progresso', more: 'Mais', settings: 'Configurações', about: 'Sobre o aplicativo', jesus: 'A história de Jesus' };
 
 const state = { view: 'home', bookId: 'joao', chapter: 1, verse: 1, chapterData: null, testament: 'Novo Testamento', pickerBook: null, syncInfo: { state: 'off' } };
@@ -268,7 +268,7 @@ function setupAudio() {
   });
   audio.setRate(setting('audioSpeed'));
   applyVoiceStyle();
-  audio.voiceName = setting('voice'); audio.pickVoice();
+  audio.gender = setting('voiceGender'); audio.voiceName = setting('voice'); audio.pickVoice();
   $('#audio-speed').value = String(setting('audioSpeed'));
 }
 let seeking = false;
@@ -283,8 +283,9 @@ function renderPlayer(s) {
   $('#audio-play').setAttribute('aria-label', playing ? 'Pausar' : 'Reproduzir');
   player.classList.toggle('is-playing', playing);
   syncMusic(playing);
-  if (playing && !voiceTipShown && audio.bestQuality >= 0 && audio.bestQuality < 3 && !store.settings().voiceTipSeen) {
-    voiceTipShown = true; store.setSetting('voiceTipSeen', true);
+  const weakVoice = audio.bestQuality < 3 || (setting('voiceGender') === 'masculina' && !audio.hasNaturalMale);
+  if (playing && !voiceTipShown && audio.bestQuality >= 0 && weakVoice && !store.settings().voiceTipSeen2) {
+    voiceTipShown = true; store.setSetting('voiceTipSeen2', true);
     setTimeout(() => toast('💡 ' + voiceTip(), 9000), 1500);
   }
   if (!seeking) $('#audio-progress').value = s.duration ? (s.elapsed / s.duration) * 100 : 0;
@@ -320,7 +321,7 @@ function voiceTip() {
   const ua = navigator.userAgent;
   if (/android/i.test(ua)) return 'Para uma voz mais natural: Configurações do Android › Idioma › Saída de conversão de texto em voz › Mecanismo Google › instale as vozes em Português (Brasil).';
   if (/iphone|ipad|mac os/i.test(ua) && !/windows/i.test(ua)) return 'Para uma voz mais natural: Ajustes › Acessibilidade › Conteúdo Falado › Vozes › Português (Brasil) › baixe uma voz “Aprimorada”.';
-  return 'Para uma voz muito mais natural, abra o app no Microsoft Edge: ele tem as vozes “Antonio” e “Francisca (Natural)”, que soam como pessoas.';
+  return 'Para uma voz masculina bem natural, abra o app no Microsoft Edge: ele tem a voz “Antonio (Natural)”, que soa como uma pessoa lendo. No Chrome a única voz masculina é a do Windows, mais robótica.';
 }
 let voiceTipShown = false;
 function applyVoiceStyle() {
@@ -499,14 +500,15 @@ function syncSettingsForm() {
   $('#setting-speed').value = String(s.audioSpeed);
   ['autoContinue', 'wholeChapter', 'autoScroll', 'autoPlay', 'music'].forEach(k => ($(`#setting-${k}`).checked = !!s[k]));
   $$('input[name=voiceStyle]').forEach(r => (r.checked = r.value === s.voiceStyle));
+  $$('input[name=voiceGender]').forEach(r => (r.checked = r.value === s.voiceGender));
   $$('input[name=musicStyle]').forEach(r => (r.checked = r.value === s.musicStyle));
   $('#setting-musicVolume').value = s.musicVolume;
   const voices = audio?.voices() || [];
   const Q = ['básica', 'comum', 'boa', '⭐ natural'];
   const sorted = [...voices].sort((x, y) => AudioManager.quality(y) - AudioManager.quality(x));
-  $('#setting-voice').innerHTML = '<option value="">Automática (a mais natural disponível)</option>' + sorted.map(v => `<option value="${esc(v.name)}">${esc(v.name)} — ${Q[AudioManager.quality(v)]}</option>`).join('');
+  $('#setting-voice').innerHTML = '<option value="">Automática (conforme a preferência acima)</option>' + sorted.map(v => `<option value="${esc(v.name)}">${esc(v.name)} — ${Q[AudioManager.quality(v)]}</option>`).join('');
   $('#setting-voice').value = s.voice || '';
-  $('#voice-help').innerHTML = !audio?.supported ? 'Seu navegador não oferece leitura em voz alta.' : !voices.length ? 'Nenhuma voz em português encontrada. No Windows, instale em Configurações › Hora e idioma › Fala. No Android, em Configurações › Conversão de texto em voz.' : `${voices.length} voz(es) em português neste aparelho.` + (audio.bestQuality < 3 ? ` <strong>${voiceTip()}</strong>` : '');
+  $('#voice-help').innerHTML = !audio?.supported ? 'Seu navegador não oferece leitura em voz alta.' : !voices.length ? 'Nenhuma voz em português encontrada. No Windows, instale em Configurações › Hora e idioma › Fala. No Android, em Configurações › Conversão de texto em voz.' : `${voices.length} voz(es) em português neste aparelho.` + ((audio.bestQuality < 3 || (s.voiceGender === 'masculina' && !audio.hasNaturalMale)) ? ` <strong>${voiceTip()}</strong>` : '');
 }
 function renderAbout() { $('#about-credit').textContent = provider.credit; }
 
@@ -656,6 +658,7 @@ function bindEvents() {
   $('#setting-musicVolume').addEventListener('input', e => { music.setVolume(e.target.value); });
   $('#setting-musicVolume').addEventListener('change', e => store.setSetting('musicVolume', Number(e.target.value)));
   $$('input[name=voiceStyle]').forEach(r => r.addEventListener('change', () => { store.setSetting('voiceStyle', r.value); applyVoiceStyle(); }));
+  $$('input[name=voiceGender]').forEach(r => r.addEventListener('change', () => { store.setSetting('voiceGender', r.value); store.setSetting('voice', ''); audio.voiceName = ''; audio.setGender(r.value); syncSettingsForm(); toast('🔊 Voz: ' + (audio.voice?.name || 'padrão do aparelho')); }));
   $$('input[name=musicStyle]').forEach(r => r.addEventListener('change', () => { store.setSetting('musicStyle', r.value); music.setStyle(r.value); }));
   window.matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', applyTheme);
   if ('speechSynthesis' in window) speechSynthesis.addEventListener?.('voiceschanged', () => state.view === 'settings' && syncSettingsForm());
