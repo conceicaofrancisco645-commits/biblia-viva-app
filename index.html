@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#20533d">
+  <meta name="description" content="Bíblia Viva — leia, ouça e estude a Bíblia Sagrada todos os dias.">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Bíblia Viva">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="assets/icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Manrope:wght@400;600;700;800&display=swap">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/responsive.css">
+  <title>Bíblia Viva — Aprenda a Palavra de Deus</title>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Pular para o conteúdo</a>
+
+  <div id="onboarding" class="onboarding" role="dialog" aria-modal="true" aria-labelledby="welcome-title" hidden>
+    <section class="welcome-card">
+      <span class="brand-mark" aria-hidden="true">✦</span>
+      <p class="eyebrow">📖 BÍBLIA VIVA</p>
+      <h1 id="welcome-title">Aprenda a Palavra de Deus<br>um dia de cada vez.</h1>
+      <p class="verse-quote">“A tua palavra é lâmpada para os meus pés e luz para o meu caminho.”</p>
+      <small>Salmos 119:105</small>
+      <p class="muted welcome-sub">Comece sua jornada</p>
+      <button class="btn primary wide" data-action="start-onboarding">Começar</button>
+    </section>
+  </div>
+  <div id="preference-dialog" class="onboarding" role="dialog" aria-modal="true" aria-labelledby="pref-title" hidden>
+    <section class="welcome-card compact">
+      <p class="eyebrow">SEU RITMO</p><h2 id="pref-title">Como você prefere estudar?</h2>
+      <div class="study-choices">
+        <button data-preference="read">📖<span>Ler</span></button>
+        <button data-preference="listen">🔊<span>Ouvir</span></button>
+        <button data-preference="both">📖 + 🔊<span>Ler e ouvir</span></button>
+      </div>
+    </section>
+  </div>
+
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="Navegação principal">
+      <button class="logo" data-view="home" aria-label="Bíblia Viva — Início"><span aria-hidden="true">✦</span><strong>Bíblia<br>Viva</strong></button>
+      <nav class="nav-list">
+        <button class="nav-link active" data-view="home"><span aria-hidden="true">⌂</span> <span>Início</span></button>
+        <button class="nav-link" data-view="bible"><span aria-hidden="true">▤</span> <span>Bíblia</span></button>
+        <button class="nav-link" data-view="search"><span aria-hidden="true">⌕</span> <span>Buscar</span></button>
+        <button class="nav-link" data-view="favorites"><span aria-hidden="true">♡</span> <span>Favoritos</span></button>
+        <button class="nav-link" data-view="more"><span aria-hidden="true">☷</span> <span>Mais</span></button>
+      </nav>
+      <div class="sidebar-bottom">
+        <button class="icon-btn" data-action="toggle-theme" aria-label="Alternar tema claro/escuro" title="Alternar tema">◐</button>
+        <button class="icon-btn" data-action="install" aria-label="Instalar aplicativo" title="Instalar aplicativo">⇩</button>
+      </div>
+    </aside>
+
+    <main id="main-content" tabindex="-1">
+      <header class="topbar">
+        <div><p id="greeting" class="eyebrow">BOM DIA!</p><h1 id="page-title">Vamos aprender a Palavra de Deus hoje?</h1></div>
+        <div class="top-actions">
+          <button class="focus-toggle" data-action="focus" aria-pressed="false"><span aria-hidden="true">🧘</span> <span>Modo foco</span></button>
+          <button class="avatar" data-action="account" aria-label="Minha conta" id="avatar">BV</button>
+        </div>
+      </header>
+
+      <!-- INÍCIO -->
+      <section class="view active" id="home-view" aria-labelledby="page-title">
+        <div class="hero-grid">
+          <article class="daily-verse" aria-labelledby="dv-label">
+            <div class="card-label"><span id="dv-label">📖 VERSÍCULO DO DIA</span><span class="sun" aria-hidden="true">☀</span></div>
+            <blockquote id="daily-verse-text">Carregando…</blockquote><p id="daily-verse-ref" class="reference"></p>
+            <div class="action-row">
+              <button class="text-action" data-action="listen-daily">🔊 Ouvir</button>
+              <button class="text-action" data-action="favorite-daily" id="favorite-daily">♡ Favoritar</button>
+              <button class="text-action" data-action="copy-daily">📋 Copiar</button>
+              <button class="text-action" data-action="note-daily">📝 Anotar</button>
+            </div>
+          </article>
+          <article class="reading-card" id="continue-card">
+            <div class="card-label"><span>CONTINUE DE ONDE PAROU</span><span aria-hidden="true">📖</span></div>
+            <p id="continue-testament" class="muted">Novo Testamento</p>
+            <h2 id="continue-chapter">João 1</h2>
+            <div class="progress-track" role="progressbar" aria-label="Progresso no capítulo" aria-valuemin="0" aria-valuemax="100" id="continue-bar"><span id="continue-progress"></span></div>
+            <p id="continue-percent" class="muted">Comece sua jornada</p>
+            <button class="btn primary" data-action="continue-reading">Continuar leitura <span aria-hidden="true">→</span></button>
+          </article>
+        </div>
+        <section class="section-heading"><div><p class="eyebrow">SUA CAMINHADA</p><h2>Minha jornada</h2></div><button class="link-btn" data-view="progress">Ver progresso →</button></section>
+        <div id="journey-stats" class="stats-grid"></div>
+        <section class="section-heading"><div><p class="eyebrow">PLANO DIÁRIO</p><h2>📅 Leitura de hoje</h2></div><button class="link-btn" data-view="plans">Ver planos →</button></section>
+        <article id="today-plan" class="plan-banner"></article>
+        <section class="jesus-banner">
+          <div><p class="eyebrow">EXPERIÊNCIA EM ÁUDIO</p><h2>🎬 Ouça e acompanhe a história de Jesus</h2>
+            <p>Acompanhe os Evangelhos com a voz do seu dispositivo, versículo por versículo. Se você tiver narrações licenciadas, elas podem ser conectadas ao app.</p>
+            <button class="btn secondary" data-view="jesus">Explorar Evangelhos →</button></div>
+          <span class="jesus-symbol" aria-hidden="true">✦</span>
+        </section>
+      </section>
+
+      <!-- BÍBLIA -->
+      <section class="view" id="bible-view">
+        <div class="view-intro"><p class="eyebrow">LEITURA</p><h1>Bíblia Sagrada</h1><p>Escolha um livro e aproxime-se da Palavra com calma.</p></div>
+        <div class="segmented" role="tablist" aria-label="Testamento" id="testament-tabs">
+          <button role="tab" data-testament="Antigo Testamento">Antigo Testamento</button>
+          <button role="tab" data-testament="Novo Testamento">Novo Testamento</button>
+        </div>
+        <div id="book-grid" class="book-grid"></div>
+        <div id="chapter-picker" class="chapter-picker" hidden>
+          <div class="chapter-picker-head"><h2 id="chapter-picker-title">Capítulos</h2><button class="link-btn" data-action="close-chapters">Fechar ×</button></div>
+          <div id="chapter-grid" class="chapter-grid"></div>
+        </div>
+      </section>
+
+      <!-- LEITOR -->
+      <section class="view" id="reader-view">
+        <div class="reader-header">
+          <button class="back-btn" data-view="bible">← Livros</button>
+          <div class="reader-title-wrap"><p id="reader-testament" class="eyebrow"></p><h1 id="reader-title"></h1></div>
+          <div class="reader-tools">
+            <button class="icon-btn" data-action="font-down" aria-label="Diminuir texto">A−</button>
+            <button class="icon-btn" data-action="font-reset" aria-label="Tamanho de texto médio">A</button>
+            <button class="icon-btn" data-action="font-up" aria-label="Aumentar texto">A+</button>
+            <button class="icon-btn play-chapter" data-action="play-chapter" aria-label="Ouvir capítulo">🔊 <span>Ouvir</span></button>
+          </div>
+        </div>
+        <p id="reader-subtitle" class="psalm-title" hidden></p>
+        <div id="reader-verses" class="verses"></div>
+        <div class="reader-footer">
+          <button class="btn secondary" data-action="prev-chapter" id="prev-chapter">← Anterior</button>
+          <button class="btn primary" id="complete-chapter" data-action="complete-chapter">✓ Marcar capítulo como concluído</button>
+          <button class="btn secondary" data-action="next-chapter" id="next-chapter">Próximo →</button>
+        </div>
+        <p class="credit" id="reader-credit"></p>
+      </section>
+
+      <!-- BUSCA -->
+      <section class="view" id="search-view">
+        <div class="view-intro"><p class="eyebrow">ENCONTRE</p><h1>🔎 O que você procura na Bíblia?</h1><p>Pesquise uma palavra (fé, amor, graça), um livro (Salmos) ou uma referência (João 3:16).</p></div>
+        <div class="search-box"><span aria-hidden="true">⌕</span><input id="search-input" type="search" placeholder="Palavra, livro, capítulo ou versículo" autocomplete="off" aria-label="Pesquisar na Bíblia"><button id="search-clear" aria-label="Limpar busca">×</button></div>
+        <div class="search-filters" role="group" aria-label="Filtrar testamento">
+          <label><input type="radio" name="search-testament" value="" checked> Bíblia toda</label>
+          <label><input type="radio" name="search-testament" value="Antigo Testamento"> Antigo</label>
+          <label><input type="radio" name="search-testament" value="Novo Testamento"> Novo</label>
+        </div>
+        <p id="search-count" class="muted" aria-live="polite"></p>
+        <div id="search-results" class="results-list"></div>
+      </section>
+
+      <!-- FAVORITOS -->
+      <section class="view" id="favorites-view">
+        <div class="view-intro"><p class="eyebrow">SEUS DESTAQUES</p><h1>❤️ Meus favoritos</h1><p>Versículos que você deseja guardar por perto.</p></div>
+        <div id="favorites-list" class="results-list"></div>
+      </section>
+
+      <!-- ANOTAÇÕES -->
+      <section class="view" id="notes-view">
+        <div class="view-intro"><p class="eyebrow">REFLEXÕES</p><h1>📝 Minhas anotações</h1><p>Suas anotações são salvas automaticamente enquanto você escreve.</p></div>
+        <div id="notes-list" class="notes-list"></div>
+      </section>
+
+      <!-- PLANOS -->
+      <section class="view" id="plans-view">
+        <div class="view-intro"><p class="eyebrow">CONSTÂNCIA</p><h1>📅 Planos de leitura</h1><p>Uma jornada possível para o momento que você vive.</p></div>
+        <div id="plans-list" class="plans-grid"></div>
+      </section>
+
+      <!-- PROGRESSO -->
+      <section class="view" id="progress-view">
+        <div class="view-intro"><p class="eyebrow">CAMINHO PERCORRIDO</p><h1>📊 Meu progresso</h1></div>
+        <div id="progress-dashboard"></div>
+      </section>
+
+      <!-- VIDA DE JESUS -->
+      <section class="view" id="jesus-view">
+        <div class="view-intro"><p class="eyebrow">EVANGELHOS</p><h1>🎬 Ouça e acompanhe a história de Jesus</h1><p>Escolha um Evangelho, toque em ouvir e acompanhe o texto destacado.</p></div>
+        <div id="gospels" class="plans-grid"></div>
+        <article class="info-card">
+          <h2>Narrações licenciadas</h2>
+          <p>Este app não inclui gravações, roteiros, músicas ou episódios de terceiros. Se você possuir arquivos de áudio licenciados, coloque-os em <code>audio/mateus</code>, <code>audio/marcos</code>, <code>audio/lucas</code> e <code>audio/joao</code> e liste-os em <code>audio/manifest.json</code> (veja o README). O player usará a narração no lugar da voz sintética.</p>
+        </article>
+      </section>
+
+      <!-- MAIS -->
+      <section class="view" id="more-view">
+        <div class="view-intro"><p class="eyebrow">PREFERÊNCIAS</p><h1>Mais</h1></div>
+        <article class="account-card" id="account-card"></article>
+        <div class="more-grid">
+          <button data-view="plans"><span aria-hidden="true">📅</span> <span>Plano de leitura</span>›</button>
+          <button data-view="progress"><span aria-hidden="true">📊</span> <span>Meu progresso</span>›</button>
+          <button data-view="favorites"><span aria-hidden="true">❤️</span> <span>Favoritos</span>›</button>
+          <button data-view="notes"><span aria-hidden="true">📝</span> <span>Minhas anotações</span>›</button>
+          <button data-view="settings" data-section="audio"><span aria-hidden="true">🔊</span> <span>Configurações de áudio</span>›</button>
+          <button data-view="settings" data-section="appearance"><span aria-hidden="true">🎨</span> <span>Aparência</span>›</button>
+          <button data-action="install"><span aria-hidden="true">📲</span> <span>Instalar aplicativo</span>›</button>
+          <button data-view="about"><span aria-hidden="true">ℹ️</span> <span>Sobre o aplicativo</span>›</button>
+        </div>
+      </section>
+
+      <!-- CONFIGURAÇÕES -->
+      <section class="view" id="settings-view">
+        <div class="view-intro"><p class="eyebrow">AJUSTES</p><h1>Configurações</h1></div>
+        <div class="settings">
+          <fieldset id="settings-appearance"><legend>🎨 Aparência</legend>
+            <div class="choice-row">
+              <label><input type="radio" name="theme" value="light"> ☀️ Claro</label>
+              <label><input type="radio" name="theme" value="dark"> 🌙 Escuro</label>
+              <label><input type="radio" name="theme" value="auto"> Automático</label>
+            </div>
+          </fieldset>
+          <fieldset><legend>📖 Leitura — tamanho da fonte</legend>
+            <div class="choice-row">
+              <label><input type="radio" name="fontSize" value="0"> Pequeno</label>
+              <label><input type="radio" name="fontSize" value="1"> Médio</label>
+              <label><input type="radio" name="fontSize" value="2"> Grande</label>
+              <label><input type="radio" name="fontSize" value="3"> Extra grande</label>
+            </div>
+            <p class="font-preview">“No princípio criou Deus os céus e a terra.”</p>
+          </fieldset>
+          <fieldset id="settings-audio"><legend>🔊 Áudio</legend>
+            <label class="field">Velocidade padrão
+              <select id="setting-speed"><option value="0.75">0.75x</option><option value="1">1x</option><option value="1.25">1.25x</option><option value="1.5">1.5x</option><option value="2">2x</option></select>
+            </label>
+            <label class="field">Voz
+              <select id="setting-voice"><option value="">Automática (voz masculina, se houver)</option></select>
+            </label>
+            <div class="field">Estilo da voz
+              <div class="choice-row">
+                <label><input type="radio" name="voiceStyle" value="cinematico"> 🎬 Cinematográfico (grave e pausado)</label>
+                <label><input type="radio" name="voiceStyle" value="solene"> Solene</label>
+                <label><input type="radio" name="voiceStyle" value="natural"> Natural</label>
+              </div>
+            </div>
+            <button class="btn secondary" data-action="test-voice">▶ Testar voz</button>
+            <p class="muted" id="voice-help"></p>
+          </fieldset>
+          <fieldset id="settings-music"><legend>🎵 Música de fundo</legend>
+            <p class="muted">Trilha suave e original, criada pelo próprio app (sem direitos autorais de terceiros). Toca baixinho junto com a narração.</p>
+            <label class="check"><input type="checkbox" id="setting-music"> Tocar música de fundo durante a narração</label>
+            <div class="field">Estilo da música
+              <div class="choice-row">
+                <label><input type="radio" name="musicStyle" value="cinematico"> 🎬 Cinematográfica (cordas e coral)</label>
+                <label><input type="radio" name="musicStyle" value="suave"> Suave (piano e sinos)</label>
+              </div>
+            </div>
+            <label class="field">Volume da música
+              <input type="range" id="setting-musicVolume" min="0" max="1" step="0.05" aria-label="Volume da música de fundo">
+            </label>
+            <button class="btn secondary" data-action="test-music">▶ Ouvir a música</button>
+          </fieldset>
+          <fieldset><legend>Reprodução</legend>
+            <label class="check"><input type="checkbox" id="setting-autoContinue"> Continuar automaticamente no próximo capítulo</label>
+            <label class="check"><input type="checkbox" id="setting-wholeChapter"> Reproduzir capítulo inteiro</label>
+            <label class="check"><input type="checkbox" id="setting-autoScroll"> Avançar automaticamente o texto junto com o áudio</label>
+            <label class="check"><input type="checkbox" id="setting-autoPlay"> Começar a ouvir ao abrir um capítulo</label>
+          </fieldset>
+          <fieldset><legend>📶 Offline</legend>
+            <p class="muted">Os capítulos que você abre ficam salvos para leitura sem internet. Para guardar a Bíblia inteira (cerca de 4 MB):</p>
+            <button class="btn secondary" data-action="download-all" id="download-all">⇩ Baixar Bíblia completa para offline</button>
+          </fieldset>
+        </div>
+      </section>
+
+      <!-- SOBRE -->
+      <section class="view" id="about-view">
+        <div class="view-intro"><p class="eyebrow">SOBRE</p><h1>ℹ️ Bíblia Viva</h1><p>Aprenda a Palavra de Deus todos os dias.</p></div>
+        <article class="info-card">
+          <h2>Privacidade</h2>
+          <p>Seus favoritos, anotações e progresso ficam salvos neste aparelho. Se você entrar com sua conta Google, eles também são guardados com segurança no Firebase, apenas para você, para sincronizar entre celular e computador. Nenhuma senha é armazenada pelo app.</p>
+          <h2>Texto bíblico</h2>
+          <p id="about-credit"></p>
+          <h2>Áudio</h2>
+          <p>A leitura em voz alta usa as vozes em português do seu próprio dispositivo (Web Speech API).</p>
+        </article>
+      </section>
+    </main>
+  </div>
+
+  <button class="exit-focus" data-action="focus" hidden>✕ Sair do modo foco</button>
+
+  <nav class="mobile-nav" aria-label="Navegação">
+    <button class="active" data-view="home"><span aria-hidden="true">🏠</span><span>Início</span></button>
+    <button data-view="bible"><span aria-hidden="true">📖</span><span>Bíblia</span></button>
+    <button data-view="search"><span aria-hidden="true">🔎</span><span>Buscar</span></button>
+    <button data-view="favorites"><span aria-hidden="true">❤️</span><span>Favoritos</span></button>
+    <button data-view="more"><span aria-hidden="true">⚙️</span><span>Mais</span></button>
+  </nav>
+
+  <section id="audio-player" class="audio-player" aria-label="Player de áudio" hidden>
+    <button class="audio-close" data-action="stop-audio" aria-label="Fechar player">×</button>
+    <div class="now-playing"><span class="pulse" aria-hidden="true">🔊</span><div><strong id="audio-title">—</strong><small id="audio-subtitle">Preparando leitura</small></div></div>
+    <input id="audio-progress" type="range" min="0" max="100" step="0.1" value="0" aria-label="Posição da leitura">
+    <div class="audio-time"><span id="audio-current">00:00</span><span id="audio-duration">00:00</span></div>
+    <div class="player-controls">
+      <button data-action="previous-verse" aria-label="Versículo anterior">⏮</button>
+      <button id="audio-play" class="play-button" data-action="toggle-audio" aria-label="Pausar">⏸</button>
+      <button data-action="next-verse" aria-label="Próximo versículo">⏭</button>
+      <button id="music-toggle" data-action="toggle-music" aria-label="Música de fundo" aria-pressed="true" title="Música de fundo">🎵</button>
+    </div>
+    <div class="player-settings">
+      <label title="Volume"><span aria-hidden="true">🔊</span><input id="audio-volume" type="range" min="0" max="1" step="0.1" value="1" aria-label="Volume"></label>
+      <select id="audio-speed" aria-label="Velocidade"><option value="0.75">0.75x</option><option value="1">1x</option><option value="1.25">1.25x</option><option value="1.5">1.5x</option><option value="2">2x</option></select>
+    </div>
+  </section>
+
+  <div id="modal-root"></div>
+  <div id="toast" role="status" aria-live="polite"></div>
+  <script src="js/firebase-config.js"></script>
+  <script src="js/app.bundle.js"></script>
+</body>
+</html>

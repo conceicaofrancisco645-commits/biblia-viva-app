@@ -1,0 +1,11 @@
+{
+  "firestore": { "rules": "firestore.rules" },
+  "hosting": {
+    "public": ".",
+    "ignore": ["firebase.json", "firestore.rules", "README.md", "servidor.ps1", "*.bat", "js/src/**", "**/.*"],
+    "headers": [
+      { "source": "service-worker.js", "headers": [{ "key": "Cache-Control", "value": "no-cache" }] },
+      { "source": "data/books/*.json", "headers": [{ "key": "Cache-Control", "value": "public, max-age=604800" }] }
+    ]
+  }
+}

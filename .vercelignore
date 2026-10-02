@@ -1,0 +1,5 @@
+servidor.ps1
+*.bat
+firebase.json
+firestore.rules
+.firebaserc
